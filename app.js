@@ -30,8 +30,21 @@ app.get('/', (req, res) => {
 
 app.post('/api/newToken', async (req, res) => {
     const token = v4();
-    const date = new Date();
-    const newToken = new Token({ _id: token, emailTitle: req.body.emailTitle, createdAt: date.toLocaleString().toUpperCase() });
+    // const date = new Date();
+    let dateTimeString;
+    await axios.get("http://worldtimeapi.org/api/timezone/Asia/Kolkata")
+        .then((res) => {
+            dateTimeString = res.data.datetime;
+        });
+
+    const dateTime = new Date(dateTimeString);
+
+    const date = dateTime.toLocaleDateString('en-GB');
+    const time = dateTime.toLocaleTimeString('en-US', { hour12: true, timeZone: 'Asia/Kolkata' });
+
+    const formattedDateTime = `${date}, ${time}`;
+
+    const newToken = new Token({ _id: token, emailTitle: req.body.emailTitle, createdAt: formattedDateTime });
     await newToken.save();
     console.log("New token created: " + token);
     res.send(token);
@@ -41,19 +54,33 @@ app.get('/api', async (req, res) => {
     const token = req.query.token;
     let ua = req.get('User-Agent');
     let parser = new UAParser(ua);
-    let ip = req.ip;
+    const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
     let location;
     await axios.get(`http://ip-api.com/json/${ip}`)
         .then(response => { location = `${response.data.city}, ${response.data.regionName}`; })
-        .catch(error => { console.log(error); });
+        .catch(error => {
+            console.log(error);
+        });
     //log time of every new request to the api 
-    const date = new Date();
+    // const date = new Date();
+    let dateTimeString;
+    await axios.get("http://worldtimeapi.org/api/timezone/Asia/Kolkata")
+        .then((res) => {
+            dateTimeString = res.data.datetime;
+        });
+
+    const dateTime = new Date(dateTimeString);
+
+    const date = dateTime.toLocaleDateString('en-GB');
+    const time = dateTime.toLocaleTimeString('en-US', { hour12: true, timeZone: 'Asia/Kolkata' });
+
+    const formattedDateTime = `${date} at ${time}`;
 
     const details = {
-        accessedAt: date.toLocaleString().toUpperCase(),
+        accessedAt: formattedDateTime,
         platform: parser.getOS().name,
         browser: parser.getBrowser().name,
-        ip: req.ip,
+        ip: ip,
         location: location,
     };
 
